@@ -101,29 +101,33 @@ jobs:
         #   libncurses5 (runtime) -> libncurses6, for the same reason as
         #                            libncurses-dev above
 
-    - name: Install libtinfo5 (for old clang prebuilts)
+    - name: Install libtinfo5 + libncurses5 (for old clang prebuilts)
       run: |
-        # Noble dropped libtinfo.so.5 from every repo, dev package
-        # included -- libncurses-dev on 24.04 only provides libtinfo6.
-        # The AOSP toolchain's prebuilt clang (clang-4691093 and other
-        # old prebuilts still used by pre-13 manifests) is linked
-        # against .so.5 specifically and fails at runtime with
-        # "error while loading shared libraries: libtinfo.so.5" if it's
-        # missing, even though the build compiles fine up to that point.
-        # Grab the last Focal (20.04) libtinfo5 build directly since
-        # there's no Noble package that provides it.
+        # Noble dropped libtinfo.so.5 and libncurses.so.5 from every repo,
+        # dev packages included -- libncurses-dev on 24.04 only provides
+        # the .so.6 versions. The AOSP toolchain's prebuilt clang tools
+        # (header-abi-dumper among them, used by clang-4691093 and other
+        # old prebuilts still shipped by pre-13 manifests) are linked
+        # against both .so.5 libs specifically and fail at runtime with
+        # "error while loading shared libraries: lib*.so.5" if either is
+        # missing -- and only when that specific prebuilt actually runs,
+        # which can be well into the build, not at compile start.
+        # Grab both from the last Focal (20.04) build directly since
+        # there's no Noble package that provides either.
         curl -LO http://archive.ubuntu.com/ubuntu/pool/universe/n/ncurses/libtinfo5_6.2-0ubuntu2_amd64.deb
-        sudo dpkg -i libtinfo5_6.2-0ubuntu2_amd64.deb
-        rm libtinfo5_6.2-0ubuntu2_amd64.deb
+        curl -LO http://archive.ubuntu.com/ubuntu/pool/universe/n/ncurses/libncurses5_6.2-0ubuntu2_amd64.deb
+        sudo dpkg -i libtinfo5_6.2-0ubuntu2_amd64.deb libncurses5_6.2-0ubuntu2_amd64.deb
+        rm libtinfo5_6.2-0ubuntu2_amd64.deb libncurses5_6.2-0ubuntu2_amd64.deb
         # dpkg's postinst normally refreshes the ldconfig cache on its own,
         # but that's happening ~13 minutes before header-abi-dumper is the
-        # first prebuilt to actually need libtinfo.so.5 at runtime, and a
+        # first prebuilt to actually need these libs at runtime, and a
         # stale cache at that point fails deep into the build instead of
-        # here. Force the refresh and check the lib resolves now, so a
+        # here. Force the refresh and check both libs resolve now, so a
         # real packaging/path problem surfaces immediately instead of
         # after most of an hour of build time.
         sudo ldconfig
         ldconfig -p | grep -q libtinfo.so.5 || { echo "::error::libtinfo.so.5 still not resolvable after ldconfig"; exit 1; }
+        ldconfig -p | grep -q libncurses.so.5 || { echo "::error::libncurses.so.5 still not resolvable after ldconfig"; exit 1; }
 
     - name: Check Build Tree
       uses: haya14busa/action-cond@v1.2.1
