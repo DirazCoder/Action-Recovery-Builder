@@ -234,6 +234,10 @@ jobs:
     - name: Install Python 2
       if: ${{ steps.buildtree.outputs.value == 'omni' }}
       run: |
+        # python2 was dropped from Ubuntu's own repos entirely (not
+        # renamed, just gone), so pull it from deadsnakes instead.
+        sudo add-apt-repository -y ppa:deadsnakes/ppa
+        sudo apt update
         sudo apt -y install python2
         cd /usr/bin
         sudo ln -sf python2 python
