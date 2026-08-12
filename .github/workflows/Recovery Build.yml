@@ -197,6 +197,22 @@ jobs:
       working-directory: workspace
       continue-on-error: true
 
+    - name: Patch TWRP relink logic for arm64-only builds
+      if: ${{ steps.buildtree.outputs.value == 'omni' }}
+      run: |
+        # bootable/recovery/prebuilt/Android.mk's RELINK_SOURCE_FILES logic
+        # checks `ifneq ($(TARGET_ARCH), x86_64)` to decide whether to
+        # require a 32-bit system/bin/linker for relinking. That condition
+        # is also true for arm64 (arm64 != x86_64), so it wrongly demands
+        # a 32-bit linker even on arm64-only targets where no 32-bit ABI
+        # is built. Restrict the 32-bit linker requirement to arm (32-bit)
+        # targets specifically instead of "everything but x86_64".
+        grep -c 'ifneq ($(TARGET_ARCH), x86_64)' bootable/recovery/prebuilt/Android.mk
+        sed -i \
+          's/ifneq (\$(TARGET_ARCH), x86_64)/ifeq (\$(TARGET_ARCH), arm)/' \
+          bootable/recovery/prebuilt/Android.mk
+      working-directory: workspace
+
     - name: Repopick Gerrit patches
       if: inputs.REPOPICK_PATCHES != null
       run: |
