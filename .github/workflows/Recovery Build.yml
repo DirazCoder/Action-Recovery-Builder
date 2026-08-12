@@ -101,6 +101,21 @@ jobs:
         #   libncurses5 (runtime) -> libncurses6, for the same reason as
         #                            libncurses-dev above
 
+    - name: Install libtinfo5 (for old clang prebuilts)
+      run: |
+        # Noble dropped libtinfo.so.5 from every repo, dev package
+        # included -- libncurses-dev on 24.04 only provides libtinfo6.
+        # The AOSP toolchain's prebuilt clang (clang-4691093 and other
+        # old prebuilts still used by pre-13 manifests) is linked
+        # against .so.5 specifically and fails at runtime with
+        # "error while loading shared libraries: libtinfo.so.5" if it's
+        # missing, even though the build compiles fine up to that point.
+        # Grab the last Focal (20.04) libtinfo5 build directly since
+        # there's no Noble package that provides it.
+        curl -LO http://archive.ubuntu.com/ubuntu/pool/universe/n/ncurses/libtinfo5_6.2-0ubuntu2_amd64.deb
+        sudo dpkg -i libtinfo5_6.2-0ubuntu2_amd64.deb
+        rm libtinfo5_6.2-0ubuntu2_amd64.deb
+
     - name: Check Build Tree
       uses: haya14busa/action-cond@v1.2.1
       id: buildtree
