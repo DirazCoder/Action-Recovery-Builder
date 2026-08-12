@@ -234,13 +234,23 @@ jobs:
     - name: Install Python 2
       if: ${{ steps.buildtree.outputs.value == 'omni' }}
       run: |
-        # python2 was dropped from Ubuntu's own repos entirely (not
-        # renamed, just gone), so pull it from deadsnakes instead.
-        sudo add-apt-repository -y ppa:deadsnakes/ppa
-        sudo apt update
-        sudo apt -y install python2
+        # Required by the omni TWRP manifest itself (see its README):
+        # the build predates python3 support and still shells out to
+        # python2 syntax in various build/envsetup.sh helper scripts.
+        # No apt source carries python2 anymore, deadsnakes included
+        # (EOL since 2020), so build it from source instead. Skipping
+        # --enable-optimizations here — it's a build-time helper, not
+        # a hot path, so the PGO build isn't worth the extra minutes.
+        sudo apt -y install build-essential zlib1g-dev libssl-dev \
+          libncurses5-dev libreadline-dev libsqlite3-dev libffi-dev
+        curl -O https://www.python.org/ftp/python/2.7.18/Python-2.7.18.tgz
+        tar xzf Python-2.7.18.tgz
+        cd Python-2.7.18
+        ./configure
+        make -j$(nproc)
+        sudo make altinstall
         cd /usr/bin
-        sudo ln -sf python2 python
+        sudo ln -sf /usr/local/bin/python2.7 python
 
     - name: Building recovery (AOSP)
       if: ${{ steps.buildtree.outputs.value == 'aosp' }} 
