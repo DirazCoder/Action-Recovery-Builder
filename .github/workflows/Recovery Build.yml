@@ -164,6 +164,34 @@ jobs:
         repo sync -j$(nproc --all) --force-sync
       working-directory: workspace
 
+    - name: Check prebuilt clang tools for missing shared libs
+      run: |
+        # header-abi-dumper needing libtinfo.so.5/libncurses.so.5 (both
+        # installed above) was found by letting the build fail ~13 minutes
+        # in with a bare "cannot open shared object file" for each one, one
+        # at a time. Now that the manifest sync has actually pulled in
+        # prebuilts/, check every binary there for missing shared libs
+        # directly -- if a future manifest bump wants a different dropped
+        # library, this names it in under a minute instead of another
+        # slow round trip through the build.
+        # Not exhaustive: only scans linux-x86 clang/clang-tools binaries,
+        # which is what's bitten this workflow so far. Other prebuilt
+        # trees (e.g. gcc, python) aren't covered here.
+        missing_found=0
+        for bin in prebuilts/clang-tools/linux-x86/bin/* prebuilts/clang/host/linux-x86/*/bin/*; do
+          [ -f "$bin" ] || continue
+          file "$bin" | grep -q "ELF" || continue
+          missing=$(ldd "$bin" 2>/dev/null | grep "not found" | awk '{print $1}')
+          if [ -n "$missing" ]; then
+            echo "::warning::$bin is missing: $missing"
+            missing_found=1
+          fi
+        done
+        if [ "$missing_found" = "1" ]; then
+          echo "::warning::One or more prebuilt tools are missing shared libs -- the build will likely fail later at whichever target first invokes them. See warnings above for which lib(s) to install."
+        fi
+      working-directory: workspace
+
     - name: Create roomservice.xml
       run: |
         mkdir -p .repo/local_manifests
