@@ -341,6 +341,20 @@ jobs:
       run: |
         source build/envsetup.sh
         export ALLOW_MISSING_DEPENDENCIES=true
+        # The j3y17lte kernel's own Kconfig (top-level, line ~15) declares
+        # ANDROID_MAJOR_VERSION and ANDROID_VERSION as required `option env=`
+        # strings -- Samsung's README_Kernel.txt for this source says to
+        # export ANDROID_MAJOR_VERSION=p before building manually, but
+        # nothing in this AOSP-style build sets it automatically since
+        # that's a kernel-side Kconfig concept, not a normal Android build
+        # variable. Without it, `make exynos7570-j3y17lte_defconfig` fails
+        # with "Kconfig:15:warning: environment variable ANDROID_MAJOR_VERSION
+        # undefined" followed by a hard Kconfig parse error. ANDROID_VERSION
+        # isn't documented in the README but is declared the same way right
+        # above it in Kconfig, so export it too rather than hit the same
+        # failure on the next line down.
+        export ANDROID_MAJOR_VERSION=p
+        export ANDROID_VERSION=9
         # frameworks/base ships a host-test module (OverlayHostTests)
         # whose LOCAL_TARGET_REQUIRED_MODULES references a module name
         # ckati now rejects as invalid. It's unrelated to recovery
