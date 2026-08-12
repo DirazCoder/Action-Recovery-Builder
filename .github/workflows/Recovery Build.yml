@@ -115,6 +115,15 @@ jobs:
         curl -LO http://archive.ubuntu.com/ubuntu/pool/universe/n/ncurses/libtinfo5_6.2-0ubuntu2_amd64.deb
         sudo dpkg -i libtinfo5_6.2-0ubuntu2_amd64.deb
         rm libtinfo5_6.2-0ubuntu2_amd64.deb
+        # dpkg's postinst normally refreshes the ldconfig cache on its own,
+        # but that's happening ~13 minutes before header-abi-dumper is the
+        # first prebuilt to actually need libtinfo.so.5 at runtime, and a
+        # stale cache at that point fails deep into the build instead of
+        # here. Force the refresh and check the lib resolves now, so a
+        # real packaging/path problem surfaces immediately instead of
+        # after most of an hour of build time.
+        sudo ldconfig
+        ldconfig -p | grep -q libtinfo.so.5 || { echo "::error::libtinfo.so.5 still not resolvable after ldconfig"; exit 1; }
 
     - name: Check Build Tree
       uses: haya14busa/action-cond@v1.2.1
