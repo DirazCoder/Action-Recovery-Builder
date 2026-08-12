@@ -280,7 +280,17 @@ jobs:
           export USE_RECOVERY_INSTALLER=true
           export RECOVERY_INSTALLER_PATH=bootable/recovery/installer
         fi
-        lunch ${{ steps.buildtree.outputs.value }}_${{ inputs.DEVICE_NAME }}-eng && make ${{ inputs.BUILD_TARGET }}image -j$(nproc --all)
+        lunch ${{ steps.buildtree.outputs.value }}_${{ inputs.DEVICE_NAME }}-eng
+        # Regenerate the ninja build graph (kati) single-threaded first.
+        # Under full parallelism, twrp-9.0/omni's kati regen can race
+        # ninja's graph lock and intermittently drop the rule for an
+        # unrelated legacy module (libbmlutils and friends) — "needed by
+        # X, missing and no known rule to make it" where X differs each
+        # run is that race, not a real missing dependency. nothing here
+        # compiles, so -j1 costs seconds, not minutes; the actual build
+        # below still runs at full parallelism.
+        make nothing -j1
+        make ${{ inputs.BUILD_TARGET }}image -j$(nproc --all)
       working-directory: workspace
 
     - name: Upload to Release
