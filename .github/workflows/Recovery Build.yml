@@ -269,6 +269,13 @@ jobs:
       run: |
         source build/envsetup.sh
         export ALLOW_MISSING_DEPENDENCIES=true
+        # frameworks/base ships a host-test module (OverlayHostTests)
+        # whose LOCAL_TARGET_REQUIRED_MODULES references a module name
+        # ckati now rejects as invalid. It's unrelated to recovery
+        # builds — just parsed as part of the full module graph — so
+        # drop the offending test directory rather than patch the
+        # framework tree itself.
+        rm -rf frameworks/base/core/tests/overlaytests/host
         if [ ${{ inputs.RECOVERY_INSTALLER }} = true ] && [ ${{ steps.recoveryinstaller.outcome == 'success' }} ]; then
           export USE_RECOVERY_INSTALLER=true
           export RECOVERY_INSTALLER_PATH=bootable/recovery/installer
