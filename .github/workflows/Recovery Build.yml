@@ -341,20 +341,6 @@ jobs:
       run: |
         source build/envsetup.sh
         export ALLOW_MISSING_DEPENDENCIES=true
-        # The j3y17lte kernel's own Kconfig (top-level, line ~15) declares
-        # ANDROID_MAJOR_VERSION and ANDROID_VERSION as required `option env=`
-        # strings -- Samsung's README_Kernel.txt for this source says to
-        # export ANDROID_MAJOR_VERSION=p before building manually, but
-        # nothing in this AOSP-style build sets it automatically since
-        # that's a kernel-side Kconfig concept, not a normal Android build
-        # variable. Without it, `make exynos7570-j3y17lte_defconfig` fails
-        # with "Kconfig:15:warning: environment variable ANDROID_MAJOR_VERSION
-        # undefined" followed by a hard Kconfig parse error. ANDROID_VERSION
-        # isn't documented in the README but is declared the same way right
-        # above it in Kconfig, so export it too rather than hit the same
-        # failure on the next line down.
-        export ANDROID_MAJOR_VERSION=p
-        export ANDROID_VERSION=9
         # frameworks/base ships a host-test module (OverlayHostTests)
         # whose LOCAL_TARGET_REQUIRED_MODULES references a module name
         # ckati now rejects as invalid. It's unrelated to recovery
@@ -376,22 +362,7 @@ jobs:
         # compiles, so -j1 costs seconds, not minutes; the actual build
         # below still runs at full parallelism.
         make nothing -j1
-        # This kernel (3.18-era, exynos7570-j3y17lte) hits a known,
-        # upstream-documented kbuild race under full parallelism: the host
-        # tool scripts/mod/devicetable-offsets.c includes asm/types.h, which
-        # only exists after scripts/Makefile.asm-generic's WRAP step
-        # generates the arch-specific symlink under include/generated/asm/.
-        # Nothing in this kernel's Makefile orders the two, so under
-        # -j$(nproc) the offsets compile can start first and fail with
-        # "asm/types.h: No such file or directory" -- see LKML thread on
-        # commit 6543becf ("mod/file2alias: make modalias generation safe
-        # for cross compiling"), same bug, still present in this kernel
-        # generation. -j1 removes the race by removing the parallelism it
-        # depends on; slower, but correct. If this becomes a real time
-        # problem later, the documented alternative is a separate
-        # single-threaded `make headers_install` pass before the parallel
-        # build, which pre-generates the symlink so nothing races it.
-        make ${{ inputs.BUILD_TARGET }}image -j1
+        make ${{ inputs.BUILD_TARGET }}image -j$(nproc --all)
       working-directory: workspace
 
     - name: Upload to Release
